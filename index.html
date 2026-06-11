@@ -1833,6 +1833,8 @@ body {
           <div class="page-title">Biblioteca</div>
           <div class="page-subtitle" id="lib-count">0 achados salvos</div>
         </div>
+        <div style="display:flex;gap:8px;align-items:center">
+        <a href="https://notebooklm.google.com" target="_blank" rel="noopener" title="Abrir NotebookLM" style="display:flex;align-items:center;gap:5px;padding:8px 12px;border:1.5px solid var(--border-strong);border-radius:8px;background:var(--surface);font-size:12px;font-weight:600;color:var(--text-secondary);text-decoration:none;white-space:nowrap;-webkit-tap-highlight-color:transparent">🎧 NotebookLM</a>
         <div class="export-btn-wrap" id="export-wrap">
           <button class="export-btn" onclick="toggleExportMenu()">Exportar ▾</button>
           <div class="export-menu" id="export-menu" style="display:none">
@@ -1845,6 +1847,7 @@ body {
             <button class="export-menu-item" onclick="triggerImport()"><span class="export-menu-icon">📥</span>Importar JSON</button>
           </div>
           <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="importLibrary(event)"/>
+        </div>
         </div>
       </div>
       <input class="lib-search" id="lib-search" placeholder="Buscar na biblioteca…" oninput="renderLibrary()"/>
