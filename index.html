@@ -1840,6 +1840,7 @@ body {
             <button class="export-menu-item" onclick="exportFormat('json')"><span class="export-menu-icon">📦</span>JSON (backup)</button>
             <button class="export-menu-item" onclick="exportFormat('csv')"><span class="export-menu-icon">📊</span>Planilha (.csv)</button>
             <button class="export-menu-item" onclick="exportFormat('html')"><span class="export-menu-icon">📋</span>Relatório HTML</button>
+            <button class="export-menu-item" onclick="exportToNotebookLM()"><span class="export-menu-icon">🎧</span>Exportar p/ NotebookLM</button>
             <button class="export-menu-item" onclick="shareLibrary()"><span class="export-menu-icon">🔗</span>Compartilhar link</button>
             <button class="export-menu-item" onclick="triggerImport()"><span class="export-menu-icon">📥</span>Importar JSON</button>
           </div>
@@ -4744,6 +4745,74 @@ function exportFormat(fmt) {
 // ════════════════════════════════════════
 // EVOLUTION 7 — SHARE & IMPORT LIBRARY
 // ════════════════════════════════════════
+// ── NotebookLM bridge ──────────────────────────────────────────
+// Generates a consolidated document optimized as a NotebookLM source,
+// downloads it, then opens notebooklm.google.com for upload.
+function exportToNotebookLM() {
+  const menu = document.getElementById("export-menu");
+  if (menu) menu.style.display = "none";
+  const lib = getLib();
+  if (!lib.length) { alert("Biblioteca vazia. Salve achados antes de exportar."); return; }
+
+  const dateStr = new Date().toLocaleDateString("pt-BR", { day:"numeric", month:"long", year:"numeric" });
+
+  // Group by theme for narrative structure (better Audio Overview output)
+  const byTheme = {};
+  lib.filter(i => i.rating !== "bad").forEach(function(item) {
+    const tLabel = (THEMES[item.themeId] || {}).label || "Outros";
+    if (!byTheme[tLabel]) byTheme[tLabel] = [];
+    byTheme[tLabel].push(item);
+  });
+
+  const lines = [];
+  lines.push("RISK INTEL — RELATÓRIO DE INTELIGÊNCIA DE RISCOS FINANCEIROS");
+  lines.push("Data de compilação: " + dateStr);
+  lines.push("");
+  lines.push("INSTRUÇÃO DE CONTEXTO: Este documento reúne achados verificados sobre gestão de riscos");
+  lines.push("financeiros no mercado bancário brasileiro, organizados por tipo de risco. Cada achado");
+  lines.push("inclui a fonte, a referência normativa e a implicação prática para gestores de banco.");
+  lines.push("");
+  lines.push("=".repeat(70));
+
+  Object.keys(byTheme).forEach(function(themeLabel) {
+    lines.push("");
+    lines.push("SEÇÃO: " + themeLabel.toUpperCase());
+    lines.push("-".repeat(70));
+    byTheme[themeLabel].forEach(function(item, i) {
+      lines.push("");
+      lines.push((i+1) + ". " + item.title);
+      lines.push("");
+      lines.push(item.body);
+      const meta = [];
+      if (item.source)  meta.push("Fonte: " + item.source);
+      if (item.date)    meta.push("Período: " + item.date);
+      if (item.normRef) meta.push("Norma: " + item.normRef);
+      if (item.metric)  meta.push("Métrica: " + item.metric);
+      if (meta.length) { lines.push(""); lines.push(meta.join(" | ")); }
+      if (item.url)    lines.push("Documento original: " + item.url);
+      lines.push("");
+    });
+  });
+
+  lines.push("=".repeat(70));
+  lines.push("Fim do relatório. Compilado pelo Risk Intel App.");
+
+  // Download the .txt (NotebookLM accepts txt/pdf/docx as sources)
+  const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "risk-intel-notebooklm.txt";
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+
+  // Guide + open NotebookLM
+  setTimeout(function() {
+    if (confirm("Documento baixado!\n\nPróximos passos no NotebookLM:\n1. Crie um notebook (ou abra um existente)\n2. Adicionar fonte → envie o arquivo risk-intel-notebooklm.txt\n3. Toque em \"Audio Overview\" para gerar o podcast com 2 apresentadores\n\nAbrir o NotebookLM agora?")) {
+      window.open("https://notebooklm.google.com", "_blank");
+    }
+  }, 600);
+}
+
 function shareLibrary() {
   const menu = document.getElementById("export-menu");
   if (menu) menu.style.display = "none";
