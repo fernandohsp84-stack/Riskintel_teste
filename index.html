@@ -1811,6 +1811,11 @@ body {
         <div style="font-size:9px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Filtrar por domínio</div>
         <div id="domain-presets-wrap" style="display:flex;flex-wrap:wrap;gap:6px"></div>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center">
+        <span style="font-size:9px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.8px">Modo:</span>
+        <button id="mode-fast" onclick="setSearchMode('fast')" style="padding:4px 11px;border-radius:14px;border:1.5px solid #34c759;background:rgba(52,199,89,.1);color:#34c759;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer">⚡ Rápida ~30s</button>
+        <button id="mode-deep" onclick="setSearchMode('deep')" style="padding:4px 11px;border-radius:14px;border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:10px;font-weight:600;cursor:pointer">🔎 Profunda ~50s</button>
+      </div>
       <div class="search-wrap">
         <input id="search-input" class="search-input" type="text" placeholder="Pesquisar…" autocomplete="off" onkeydown="if(event.key==='Enter')search()"/>
         <button class="search-btn" id="search-btn" onclick="search()">Buscar</button>
@@ -2531,50 +2536,18 @@ const NA_LABELS = {
 // ══════════════════════════════════════════════════════════════════
 
 // Layer 1: Deep research prompt — domain-expert structured extraction
-const SYS_RESEARCH = `Você é um especialista em gestão de riscos financeiros e regulação bancária brasileira e internacional. Você tem acesso a busca na web e DEVE usá-la para fundamentar cada achado em documentos reais.
+const SYS_RESEARCH = `Você é especialista sênior em regulação bancária brasileira e internacional (BCB, CMN, BIS/BCBS, FSB). Você TEM acesso a busca web e DEVE usá-la para fundamentar os achados em documentos reais.
 
-INSTRUÇÃO CRÍTICA — BUSCA OBRIGATÓRIA:
-Para cada consulta, você DEVE executar buscas nas seguintes fontes primárias antes de responder:
+PROCESSO (execute em ordem):
+1. BUSQUE (2-3 buscas focadas): priorize bcb.gov.br, bis.org/bcbs/publ, fsb.org. Para crédito/inadimplência inclua serasaexperian.com.br. Para acadêmico use scholar.google.com (nunca ssrn.com direto — bloqueia bots).
+2. EXTRAIA de cada documento real: número exato da norma, data, métrica concreta, URL de origem.
+3. AUTO-REVISE antes de responder: descarte itens genéricos sem norma/métrica; verifique formato das referências (Res. BCB XXXX/AAAA, Circular X.XXX, BCBS dXXX); NUNCA invente norma, data ou URL — se não encontrou, omita ou marque confidence baixo.
 
-1. BCB (Banco Central do Brasil):
-   - Busque em: bcb.gov.br/estabilidadefinanceira e bcb.gov.br/nor/relcumpnorm
-   - Termos: "Resolução BCB [tema]", "Circular BCB [tema]", "Relatório de Estabilidade Financeira [ano]"
-   - Verifique número, data e ementa real de cada norma citada
+CONFIDENCE: "alto"=URL real+conteúdo verificado · "médio"=norma existe, conteúdo não confirmado · "baixo"=sem fonte primária (adicione no body: "(Nota: não verificado em fonte primária — confirme antes de usar)").
 
-2. SERASA EXPERIAN (quando relevante para crédito, inadimplência, fraude):
-   - Busque em: serasaexperian.com.br/sala-de-imprensa/indicadores e serasaexperian.com.br/conteudos/estudos-e-pesquisas
-   - Termos: "Serasa Experian inadimplência [ano]", "Serasa demanda crédito", "Serasa falências recuperação judicial"
-   - Publicações relevantes: Boletim Econômico mensal, Indicadores de Crédito, Atividade Comercial, Recuperação de Dívidas
-
-3. BIS / BCBS (Bank for International Settlements):
-   - Busque em: bis.org/bcbs/publ e bis.org/publ
-   - Termos: "BCBS [tema] [ano]", "Basel [tema]"
-   - Confirme número do documento (ex: d457, d368) e data de publicação real
-
-3. FSB (Financial Stability Board):
-   - Busque em: fsb.org/publications
-   - Termos: "FSB [tema] [ano]"
-
-4. Relatórios dos bancos (Pilar 3):
-   - Busque o Relatório de Gerenciamento de Riscos ou Pilar 3 mais recente de Itaú, Santander, BB, BTG ou Nubank
-   - Use termos: "Itaú Pilar 3 [ano] [tema]" ou "Santander gestão riscos [ano]"
-
-REGRAS DE QUALIDADE:
-- NUNCA cite uma norma que não encontrou nas buscas — se não encontrar, omita a referência
-- NUNCA invente número de resolução, data ou métrica
-- Se encontrar a norma mas não o conteúdo específico, marque confidence como "médio"
-- Se não encontrar nenhuma fonte primária para o item, marque confidence como "baixo" e diga explicitamente no body
-- Inclua a URL REAL encontrada nas buscas no campo url (não invente)
-- Para buscas acadêmicas: use scholar.google.com e semanticscholar.org como porta de entrada — eles indexam SSRN e arXiv e são acessíveis. Não tente acessar ssrn.com diretamente pois pode bloquear bots.
-
-FORMATO DE SAÍDA — retorne APENAS este JSON válido:
-{"summary":"síntese executiva de 2 frases com dados verificados","items":[{"title":"título técnico preciso baseado no documento encontrado","body":"análise com: (1) referência exata encontrada na busca, (2) conteúdo real do documento, (3) implicação prática. Mínimo 3 frases.","source":"nome completo da fonte","sourceCode":"BCB","riskLabel":"label do risco","date":"data real do documento (ex: Nov 2024, Q3 2024)","relevance":"alto","confidence":"alto","normRef":"número e data real da norma (ex: Res. BCB 4.557, 23/fev/2017)","metric":"métrica real encontrada no documento","url":"URL real onde encontrou o documento"}]}
-
-- confidence "alto" = URL real encontrada, conteúdo verificado
-- confidence "médio" = norma existe mas conteúdo específico não confirmado
-- confidence "baixo" = baseado em conhecimento geral, sem fonte primária encontrada
-- Retorne 4 a 6 itens
-- APENAS JSON puro na resposta`;
+RETORNE APENAS este JSON (sem markdown, sem texto extra):
+{"summary":"síntese executiva 2 frases","items":[{"title":"título técnico","body":"análise: (1) referência encontrada, (2) conteúdo real, (3) implicação prática. Mín 3 frases.","source":"nome da fonte","sourceCode":"BCB|ITAU|SANB|BB|BTG|NU|BIS|CMN|FSB|FEBRABAN|SERASA","riskLabel":"label","date":"período real","relevance":"alto|médio|baixo","confidence":"alto|médio|baixo","normRef":"norma real ou vazio","metric":"métrica real ou vazio","url":"URL real ou vazio"}]}
+Retorne 4 a 5 itens de ALTA qualidade (qualidade > quantidade).`;
 
 // Layer 2: Critical review prompt — fact-check and quality filter
 const SYS_REVIEW = `Você é um revisor especializado em regulação financeira. Recebeu achados de pesquisa e deve verificar cada um criticamente.
@@ -2910,7 +2883,8 @@ async function callClaude(systemPrompt, userContent, opts = {}) {
   const {
     model    = "claude-sonnet-4-5",
     maxTokens = 5000,
-    useSearch = false
+    useSearch = false,
+    maxSearches = 3
   } = opts;
 
   const body = {
@@ -2924,7 +2898,7 @@ async function callClaude(systemPrompt, userContent, opts = {}) {
     body.tools = [{
       type: "web_search_20250305",
       name: "web_search",
-      max_uses: 5
+      max_uses: maxSearches
     }];
   }
 
@@ -2971,68 +2945,39 @@ async function doSearch(q) {
   const btn = document.getElementById("search-btn");
   btn.disabled = true; btn.textContent = "…";
 
-  const seen = Array.from(getAllSeenTitles()).slice(0, 30);
+  const seen = Array.from(getAllSeenTitles()).slice(0, 25);
   const excl = seen.length ? "\nEVITE títulos similares aos já vistos:\n" + seen.map(t => "- " + t).join("\n") : "";
 
-  // Show step 1 loading
   setLoadingStep(T, 1);
 
   try {
-    // ── LAYER 1: Deep Research ──────────────────────────────────
     const domainInstr = getDomainInstruction();
-    const userMsg1 = `Tema de risco: ${T.label}
-Consulta específica: ${q}${excl}${domainInstr}
+    const deep = searchMode === "deep";
+    const userMsg = "Tema de risco: " + T.label
+      + "\nConsulta: " + q + excl + domainInstr
+      + (deep ? "\n\nModo profundo: use até 3 buscas e seja minucioso na verificação."
+              : "\n\nModo rápido: use no máximo 2 buscas focadas. Priorize velocidade com precisão.");
 
-Realizar pesquisa profunda conforme instruções.`;
-    const raw1 = await callClaude(SYS_RESEARCH, userMsg1, {
+    // Single call: research + self-review fused (was 2 sequential calls)
+    const raw = await callClaude(SYS_RESEARCH, userMsg, {
       model: "claude-sonnet-4-5",
-      maxTokens: 6000,
-      useSearch: true
+      maxTokens: deep ? 4500 : 3500,
+      useSearch: true,
+      maxSearches: deep ? 3 : 2
     });
-    const parsed1 = parseJSON(raw1);
 
-    if (!parsed1?.items?.length) throw new Error("Pesquisa não retornou dados estruturados.");
+    const parsed = parseJSON(raw);
+    if (!parsed?.items?.length) throw new Error("Pesquisa não retornou dados estruturados.");
 
-    // Clean cite tags and XML artifacts from all body fields
-    if (parsed1.items) {
-      parsed1.items = parsed1.items.map(item => ({
-        ...item,
-        body:  cleanBody(item.body),
-        title: cleanBody(item.title),
-      }));
-    }
-
-    // Show step 2 loading
-    setLoadingStep(T, 2);
-
-    // ── LAYER 2: Critical Review ────────────────────────────────
-    const userMsg2 = `Revise criticamente estes achados sobre "${T.label}" — consulta: "${q}":
-
-${JSON.stringify(parsed1)}`;
-    let finalParsed = parsed1; // fallback if review fails
-    try {
-      const raw2 = await callClaude(SYS_REVIEW, userMsg2, {
-        model: "claude-haiku-4-5-20251001",
-        maxTokens: 3000,
-        useSearch: false
-      });
-      const parsed2 = parseJSON(raw2);
-      if (parsed2?.items?.length) {
-        // Clean after review too
-        parsed2.items = parsed2.items.map(item => ({
-          ...item,
-          body:  cleanBody(item.body),
-          title: cleanBody(item.title),
-        }));
-        finalParsed = parsed2;
-      }
-    } catch(reviewErr) {
-      console.warn("Review layer failed, using research output:", reviewErr.message);
-    }
+    parsed.items = parsed.items.map(item => ({
+      ...item,
+      body:  cleanBody(item.body),
+      title: cleanBody(item.title),
+    }));
 
     if (window._loadingTimer) { clearInterval(window._loadingTimer); window._loadingTimer = null; }
-    addToHistory(q, theme, finalParsed.items?.length || 0);
-    renderResults(finalParsed, T);
+    addToHistory(q, theme, parsed.items?.length || 0);
+    renderResults(parsed, T);
 
   } catch (err) {
     if (window._loadingTimer) { clearInterval(window._loadingTimer); window._loadingTimer = null; }
@@ -3051,8 +2996,8 @@ function setLoading(T) { setLoadingStep(T, 1); }
 
 function setLoadingStep(T, step) {
   const steps = [
-    { label: "Buscando nas fontes reais", detail: "bcb.gov.br · bis.org · fsb.org · Pilar 3" },
-    { label: "Revisão e verificação",     detail: "Validando normas · filtrando imprecisões" },
+    { label: "Buscando e verificando nas fontes reais", detail: "bcb.gov.br · bis.org · fsb.org · Serasa · Pilar 3" },
+    { label: "Finalizando", detail: "Estruturando resultados" },
   ];
   const s = steps[step - 1] || steps[0];
   const pct = step === 1 ? 40 : 85;
@@ -5064,4 +5009,18 @@ if (document.readyState === "loading") {
 }
 </script>
 </body>
-</html>
+</html>let searchMode = "fast"; // "fast" (2 buscas) | "deep" (3 buscas + revisão minuciosa)
+
+function setSearchMode(m) {
+  searchMode = m;
+  const fast = document.getElementById("mode-fast");
+  const deep = document.getElementById("mode-deep");
+  if (fast && deep) {
+    const on  = "padding:4px 11px;border-radius:14px;border:1.5px solid #34c759;background:rgba(52,199,89,.1);color:#34c759;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer";
+    const off = "padding:4px 11px;border-radius:14px;border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:10px;font-weight:600;cursor:pointer";
+    fast.style.cssText = m === "fast" ? on : off;
+    deep.style.cssText = m === "deep" ? on.replace(/#34c759/g,"#0071e3").replace("52,199,89","0,113,227") : off;
+  }
+}
+
+
