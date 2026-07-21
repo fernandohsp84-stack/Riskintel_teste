@@ -2570,6 +2570,21 @@ APENAS JSON puro.`;
 // ════════════════════════════════════════
 // ESTADO
 // ════════════════════════════════════════
+let searchMode = "fast"; // "fast" (2 buscas) | "deep" (3 buscas, verificação minuciosa)
+
+function setSearchMode(m) {
+  searchMode = m;
+  const fast = document.getElementById("mode-fast");
+  const deep = document.getElementById("mode-deep");
+  if (!fast || !deep) return;
+  const base = "padding:4px 11px;border-radius:14px;font-family:'Inter',sans-serif;font-size:10px;cursor:pointer;";
+  const off  = base + "border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);font-weight:600;";
+  const onG  = base + "border:1.5px solid #34c759;background:rgba(52,199,89,.1);color:#34c759;font-weight:700;";
+  const onB  = base + "border:1.5px solid #0071e3;background:rgba(0,113,227,.1);color:#0071e3;font-weight:700;";
+  fast.style.cssText = (m === "fast") ? onG : off;
+  deep.style.cssText = (m === "deep") ? onB : off;
+}
+
 let theme = "modelo", apiKey = "", lastQ = "", loading = false;
 let currentPage = "search", libFilter = "all";
 let pendingEmailItem = null, pendingNATarget = null, pendingNAContext = null;
@@ -4691,11 +4706,8 @@ function exportFormat(fmt) {
 }
 
 // ════════════════════════════════════════
-// EVOLUTION 7 — SHARE & IMPORT LIBRARY
+// NOTEBOOKLM BRIDGE
 // ════════════════════════════════════════
-// ── NotebookLM bridge ──────────────────────────────────────────
-// Generates a consolidated document optimized as a NotebookLM source,
-// downloads it, then opens notebooklm.google.com for upload.
 function exportToNotebookLM() {
   const menu = document.getElementById("export-menu");
   if (menu) menu.style.display = "none";
@@ -4704,7 +4716,6 @@ function exportToNotebookLM() {
 
   const dateStr = new Date().toLocaleDateString("pt-BR", { day:"numeric", month:"long", year:"numeric" });
 
-  // Group by theme for narrative structure (better Audio Overview output)
   const byTheme = {};
   lib.filter(i => i.rating !== "bad").forEach(function(item) {
     const tLabel = (THEMES[item.themeId] || {}).label || "Outros";
@@ -4713,39 +4724,38 @@ function exportToNotebookLM() {
   });
 
   const lines = [];
-  lines.push("RISK INTEL — RELATÓRIO DE INTELIGÊNCIA DE RISCOS FINANCEIROS");
-  lines.push("Data de compilação: " + dateStr);
+  lines.push("RISK INTEL — RELATORIO DE INTELIGENCIA DE RISCOS FINANCEIROS");
+  lines.push("Data de compilacao: " + dateStr);
   lines.push("");
-  lines.push("INSTRUÇÃO DE CONTEXTO: Este documento reúne achados verificados sobre gestão de riscos");
-  lines.push("financeiros no mercado bancário brasileiro, organizados por tipo de risco. Cada achado");
-  lines.push("inclui a fonte, a referência normativa e a implicação prática para gestores de banco.");
+  lines.push("CONTEXTO: Este documento reune achados verificados sobre gestao de riscos financeiros");
+  lines.push("no mercado bancario brasileiro, organizados por tipo de risco. Cada achado inclui a");
+  lines.push("fonte, a referencia normativa e a implicacao pratica para gestores de banco.");
   lines.push("");
-  lines.push("=".repeat(70));
+  lines.push("======================================================================");
 
   Object.keys(byTheme).forEach(function(themeLabel) {
     lines.push("");
-    lines.push("SEÇÃO: " + themeLabel.toUpperCase());
-    lines.push("-".repeat(70));
+    lines.push("SECAO: " + themeLabel.toUpperCase());
+    lines.push("----------------------------------------------------------------------");
     byTheme[themeLabel].forEach(function(item, i) {
       lines.push("");
-      lines.push((i+1) + ". " + item.title);
+      lines.push((i + 1) + ". " + item.title);
       lines.push("");
       lines.push(item.body);
       const meta = [];
       if (item.source)  meta.push("Fonte: " + item.source);
-      if (item.date)    meta.push("Período: " + item.date);
+      if (item.date)    meta.push("Periodo: " + item.date);
       if (item.normRef) meta.push("Norma: " + item.normRef);
-      if (item.metric)  meta.push("Métrica: " + item.metric);
+      if (item.metric)  meta.push("Metrica: " + item.metric);
       if (meta.length) { lines.push(""); lines.push(meta.join(" | ")); }
-      if (item.url)    lines.push("Documento original: " + item.url);
+      if (item.url) lines.push("Documento original: " + item.url);
       lines.push("");
     });
   });
 
-  lines.push("=".repeat(70));
-  lines.push("Fim do relatório. Compilado pelo Risk Intel App.");
+  lines.push("======================================================================");
+  lines.push("Fim do relatorio. Compilado pelo Risk Intel App.");
 
-  // Download the .txt (NotebookLM accepts txt/pdf/docx as sources)
   const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -4753,27 +4763,25 @@ function exportToNotebookLM() {
   document.body.appendChild(a); a.click();
   document.body.removeChild(a); URL.revokeObjectURL(url);
 
-  // Guide + open NotebookLM
   setTimeout(function() {
-    if (confirm("Documento baixado!\n\nPróximos passos no NotebookLM:\n1. Crie um notebook (ou abra um existente)\n2. Adicionar fonte → envie o arquivo risk-intel-notebooklm.txt\n3. Toque em \"Audio Overview\" para gerar o podcast com 2 apresentadores\n\nAbrir o NotebookLM agora?")) {
+    if (confirm("Documento baixado!\n\nNo NotebookLM:\n1. Crie ou abra um notebook\n2. Adicionar fonte -> envie risk-intel-notebooklm.txt\n3. Toque em Audio Overview para gerar o podcast\n\nAbrir o NotebookLM agora?")) {
       window.open("https://notebooklm.google.com", "_blank");
     }
   }, 600);
 }
 
+// ════════════════════════════════════════
+// SHARE & IMPORT
+// ════════════════════════════════════════
 function shareLibrary() {
   const menu = document.getElementById("export-menu");
   if (menu) menu.style.display = "none";
   const lib = getLib();
   if (!lib.length) { alert("Biblioteca vazia."); return; }
 
-  // Encode as base64 JSON for URL sharing (small libraries only)
-  const data = { v: "4.0", ts: new Date().toISOString(), items: lib };
-  const json = JSON.stringify(data);
-
+  const json = JSON.stringify({ v: "5.0", ts: new Date().toISOString(), items: lib });
   if (json.length > 50000) {
-    // Too large for URL — export JSON instead
-    alert("Biblioteca grande demais para link. Use Exportar → JSON e envie o arquivo.");
+    alert("Biblioteca grande demais para link. Use Exportar -> JSON e envie o arquivo.");
     exportFormat("json");
     return;
   }
@@ -4783,10 +4791,10 @@ function shareLibrary() {
 
   if (navigator.share) {
     navigator.share({ title: "Risk Intel — Biblioteca", text: "Minha biblioteca Risk Intel (" + lib.length + " achados)", url: shareUrl })
-      .catch(() => copyToClipboard(shareUrl));
+      .catch(function() { copyToClipboard(shareUrl); });
   } else {
     copyToClipboard(shareUrl);
-    alert("Link copiado para a área de transferência!\n\nQuem abrir este link verá sua biblioteca automaticamente importada.");
+    alert("Link copiado! Quem abrir vera sua biblioteca para importar.");
   }
 }
 
@@ -4801,23 +4809,24 @@ function copyToClipboard(text) {
 function triggerImport() {
   const menu = document.getElementById("export-menu");
   if (menu) menu.style.display = "none";
-  document.getElementById("import-file-input")?.click();
+  const el = document.getElementById("import-file-input");
+  if (el) el.click();
 }
 
 function importLibrary(event) {
-  const file = event.target.files?.[0];
+  const file = event.target.files && event.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = function(e) {
     try {
       const data = JSON.parse(e.target.result);
       const items = data.items || (Array.isArray(data) ? data : []);
-      if (!items.length) { alert("Arquivo inválido ou vazio."); return; }
+      if (!items.length) { alert("Arquivo invalido ou vazio."); return; }
       const current = getLib();
-      const currentIds = new Set(current.map(i => i.title + i.source));
-      const toAdd = items.filter(i => !currentIds.has(i.title + i.source));
-      if (!toAdd.length) { alert("Todos os achados já existem na sua biblioteca."); return; }
-      saveLib([...toAdd, ...current]);
+      const ids = new Set(current.map(function(i) { return i.title + i.source; }));
+      const toAdd = items.filter(function(i) { return !ids.has(i.title + i.source); });
+      if (!toAdd.length) { alert("Todos os achados ja existem na sua biblioteca."); return; }
+      saveLib(toAdd.concat(current));
       alert(toAdd.length + " achado(s) importado(s) com sucesso!");
       renderLibrary();
     } catch(err) {
@@ -4833,23 +4842,21 @@ function checkUrlImport() {
   const libParam = params.get("lib");
   if (!libParam) return;
   try {
-    const json = decodeURIComponent(atob(libParam));
-    const data = JSON.parse(json);
+    const data = JSON.parse(decodeURIComponent(atob(libParam)));
     const items = data.items || [];
     if (!items.length) return;
-    if (confirm(`Importar ${items.length} achado(s) de uma biblioteca compartilhada?`)) {
+    if (confirm("Importar " + items.length + " achado(s) de uma biblioteca compartilhada?")) {
       const current = getLib();
-      const ids = new Set(current.map(i => i.title + i.source));
-      const toAdd = items.filter(i => !ids.has(i.title + i.source));
-      saveLib([...toAdd, ...current]);
-      // Clean URL
+      const ids = new Set(current.map(function(i) { return i.title + i.source; }));
+      const toAdd = items.filter(function(i) { return !ids.has(i.title + i.source); });
+      saveLib(toAdd.concat(current));
       window.history.replaceState({}, "", window.location.pathname);
     }
   } catch(_) {}
 }
 
 // ════════════════════════════════════════
-// EVOLUTION 8 — SEARCH HISTORY
+// HISTÓRICO
 // ════════════════════════════════════════
 function getHistory() {
   try { return JSON.parse(localStorage.getItem("ri_history") || "[]"); } catch { return []; }
@@ -4858,19 +4865,13 @@ function saveHistory(h) { localStorage.setItem("ri_history", JSON.stringify(h));
 
 function addToHistory(q, themeId, resultCount) {
   if (!q) return;
-  const h = getHistory().filter(i => i.query !== q); // dedup
-  h.unshift({
-    id: Date.now(),
-    query: q,
-    themeId,
-    resultCount,
-    date: new Date().toISOString()
-  });
-  saveHistory(h.slice(0, 100)); // keep last 100
+  const h = getHistory().filter(function(i) { return i.query !== q; });
+  h.unshift({ id: Date.now(), query: q, themeId: themeId, resultCount: resultCount, date: new Date().toISOString() });
+  saveHistory(h.slice(0, 100));
 }
 
 function clearHistory() {
-  if (confirm("Limpar todo o histórico de buscas?")) {
+  if (confirm("Limpar todo o historico de buscas?")) {
     localStorage.removeItem("ri_history");
     renderHistory();
   }
@@ -4880,42 +4881,40 @@ function renderHistory() {
   const h = getHistory();
   const el = document.getElementById("history-content");
   if (!el) return;
-
-  document.getElementById("history-subtitle").textContent =
-    h.length + " consulta" + (h.length !== 1 ? "s" : "");
+  const sub = document.getElementById("history-subtitle");
+  if (sub) sub.textContent = h.length + " consulta" + (h.length !== 1 ? "s" : "");
 
   if (!h.length) {
-    el.innerHTML = `<div class="history-empty">
-      <div class="history-empty-icon">🕐</div>
-      <div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">Nenhuma busca ainda</div>
-      <div style="font-size:12px;color:var(--text-tertiary)">Suas consultas aparecerão aqui.</div>
-    </div>`;
+    el.innerHTML = '<div class="history-empty">'
+      + '<div class="history-empty-icon">🕐</div>'
+      + '<div style="font-size:14px;font-weight:600;color:var(--text-secondary);margin-bottom:4px">Nenhuma busca ainda</div>'
+      + '<div style="font-size:12px;color:var(--text-tertiary)">Suas consultas aparecerao aqui.</div>'
+      + '</div>';
     return;
   }
 
-  // Group by date
   const groups = {};
-  h.forEach(item => {
-    const d = new Date(item.date).toLocaleDateString("pt-BR", {weekday:"short",day:"numeric",month:"short"});
+  h.forEach(function(item) {
+    const d = new Date(item.date).toLocaleDateString("pt-BR", { weekday:"short", day:"numeric", month:"short" });
     if (!groups[d]) groups[d] = [];
     groups[d].push(item);
   });
 
-  el.innerHTML = Object.entries(groups).map(([date, items]) => `
-    <div style="font-size:10px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px">${date}</div>
-    ${items.map(item => {
+  el.innerHTML = Object.keys(groups).map(function(date) {
+    const rows = groups[date].map(function(item) {
       const T = THEMES[item.themeId] || THEMES.modelo;
-      const time = new Date(item.date).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-      return `<div class="history-item" onclick="rerunSearch('${esc(item.query)}','${item.themeId}')">
-        <div class="history-theme-dot" style="background:${T.accent}"></div>
-        <div style="flex:1;min-width:0">
-          <div class="history-item-q">${esc(item.query)}</div>
-          <div class="history-item-meta">${T.label} · ${time}${item.resultCount?" · "+item.resultCount+" resultado"+(item.resultCount!==1?"s":""):""}</div>
-        </div>
-        <div class="history-item-arrow">→</div>
-      </div>`;
-    }).join("")}
-  `).join("");
+      const time = new Date(item.date).toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+      const cnt = item.resultCount ? " · " + item.resultCount + " resultado" + (item.resultCount !== 1 ? "s" : "") : "";
+      return '<div class="history-item" onclick=\'rerunSearch(' + JSON.stringify(item.query) + ',' + JSON.stringify(item.themeId || "modelo") + ')\'>'
+        + '<div class="history-theme-dot" style="background:' + T.accent + '"></div>'
+        + '<div style="flex:1;min-width:0">'
+        + '<div class="history-item-q">' + esc(item.query) + '</div>'
+        + '<div class="history-item-meta">' + esc(T.label) + ' · ' + time + cnt + '</div>'
+        + '</div><div class="history-item-arrow">→</div></div>';
+    }).join("");
+    return '<div style="font-size:10px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px">'
+      + esc(date) + '</div>' + rows;
+  }).join("");
 }
 
 function rerunSearch(q, themeId) {
@@ -4929,31 +4928,22 @@ function rerunSearch(q, themeId) {
 // ════════════════════════════════════════
 // SAIBA MAIS — FAQ accordion
 // ════════════════════════════════════════
-function toggleQA(el) {
-  el.classList.toggle('open');
-}
+function toggleQA(el) { el.classList.toggle("open"); }
 
 // ════════════════════════════════════════
 // BOOTSTRAP
 // ════════════════════════════════════════
 function bootstrap() {
-  // Start clock
-  setInterval(() => {
+  setInterval(function() {
     const el = document.getElementById("clock");
     if (el) el.textContent = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
   }, 1000);
-  const el = document.getElementById("clock");
-  if (el) el.textContent = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
+  const clk = document.getElementById("clock");
+  if (clk) clk.textContent = new Date().toLocaleTimeString("pt-BR", { hour:"2-digit", minute:"2-digit" });
 
-  // Check saved key
   const saved = cleanKey(localStorage.getItem("ri_key") || "");
-  if (saved && saved.length >= 20) {
-    apiKey = saved;
-    showApp();
-    return;
-  }
+  if (saved && saved.length >= 20) { apiKey = saved; showApp(); return; }
 
-  // Show setup screen — wire up ALL possible ways to confirm the key
   const screen = document.getElementById("setup-screen");
   const app    = document.getElementById("app-screen");
   if (screen) screen.style.display = "flex";
@@ -4964,10 +4954,7 @@ function bootstrap() {
 
   function tryEnter() {
     const k = cleanKey(inp ? inp.value : "");
-    if (!k || k.length < 20) {
-      showSetupError("Cole a chave completa (começa com sk-ant-)");
-      return;
-    }
+    if (!k || k.length < 20) { showSetupError("Cole a chave completa (comeca com sk-ant-)"); return; }
     apiKey = k;
     localStorage.setItem("ri_key", k);
     clearSetupError();
@@ -4975,30 +4962,23 @@ function bootstrap() {
   }
 
   if (inp) {
-    // 1. Blur (leaving the field) — easiest on iOS
     inp.addEventListener("blur", function() {
       const k = cleanKey(inp.value);
       if (k && k.length >= 20) tryEnter();
     });
-    // 2. Enter key
     inp.addEventListener("keydown", function(e) {
       if (e.key === "Enter") { e.preventDefault(); tryEnter(); }
     });
-    // 3. Input change - auto-submit when key looks complete
     inp.addEventListener("input", function() {
       clearSetupError();
       const k = cleanKey(inp.value);
-      if (k && k.length >= 80) {
-        // Key is long enough - auto submit after short delay
-        setTimeout(tryEnter, 400);
-      }
+      if (k && k.length >= 80) setTimeout(tryEnter, 400);
     });
   }
 
   if (btn) {
-    btn.addEventListener("click",    function(e) { e.preventDefault(); tryEnter(); });
+    btn.addEventListener("click", function(e) { e.preventDefault(); tryEnter(); });
     btn.addEventListener("touchend", function(e) { e.preventDefault(); tryEnter(); });
-    btn.addEventListener("touchstart", function() {}, { passive: true });
   }
 }
 
@@ -5009,18 +4989,4 @@ if (document.readyState === "loading") {
 }
 </script>
 </body>
-</html>let searchMode = "fast"; // "fast" (2 buscas) | "deep" (3 buscas + revisão minuciosa)
-
-function setSearchMode(m) {
-  searchMode = m;
-  const fast = document.getElementById("mode-fast");
-  const deep = document.getElementById("mode-deep");
-  if (fast && deep) {
-    const on  = "padding:4px 11px;border-radius:14px;border:1.5px solid #34c759;background:rgba(52,199,89,.1);color:#34c759;font-family:'Inter',sans-serif;font-size:10px;font-weight:700;cursor:pointer";
-    const off = "padding:4px 11px;border-radius:14px;border:1.5px solid var(--border-strong);background:var(--surface);color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:10px;font-weight:600;cursor:pointer";
-    fast.style.cssText = m === "fast" ? on : off;
-    deep.style.cssText = m === "deep" ? on.replace(/#34c759/g,"#0071e3").replace("52,199,89","0,113,227") : off;
-  }
-}
-
-
+</html>
